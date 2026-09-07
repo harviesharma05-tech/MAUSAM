@@ -9,18 +9,22 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --ink:#0C1826;
-    --surface:#132540;
-    --surface-2:#1B3355;
-    --surface-3:#234070;
-    --mist:#EEF3F9;
-    --mist-dim:#B9C6D9;
-    --teal:#2FA792;
-    --teal-dim:#1F6E62;
-    --amber:#E8A33D;
-    --clay:#C1573A;
-    --line: rgba(238,243,249,0.10);
-    --shadow: 0 18px 40px rgba(4,10,20,0.45);
+    --ink:#0A0F1F;
+    --dusk1:#2D1B4E;
+    --dusk2:#1B2A5E;
+    --dusk3:#0E1B3D;
+    --surface: rgba(255,255,255,0.055);
+    --surface-2: rgba(255,255,255,0.09);
+    --surface-3: rgba(255,255,255,0.14);
+    --mist:#F5F0FF;
+    --mist-dim:#B3AEDB;
+    --teal:#3FE0C5;
+    --teal-dim:#1B6E62;
+    --amber:#FFB454;
+    --clay:#FF6F61;
+    --violet:#A78BFA;
+    --line: rgba(245,240,255,0.12);
+    --shadow: 0 24px 60px rgba(5,4,20,0.55);
     --radius-lg: 26px;
     --radius-md: 18px;
     --radius-sm: 12px;
@@ -28,7 +32,10 @@
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{
-    background: radial-gradient(1200px 800px at 50% -10%, #1B3355 0%, #0C1826 55%), #0C1826;
+    background:
+      radial-gradient(700px 500px at 88% -6%, rgba(255,180,84,0.16) 0%, transparent 60%),
+      radial-gradient(900px 700px at 8% 8%, rgba(167,139,250,0.22) 0%, transparent 55%),
+      linear-gradient(160deg, var(--dusk1) 0%, var(--dusk2) 45%, var(--dusk3) 100%);
     font-family:'Manrope', sans-serif;
     color:var(--mist);
     min-height:100vh;
@@ -39,16 +46,23 @@
   .frame{
     width:100%;
     max-width:430px;
-    background: linear-gradient(180deg, #10203A 0%, #0C1826 100%);
+    background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.015) 100%), var(--dusk3);
+    backdrop-filter: blur(20px);
     border-radius: 34px;
-    box-shadow: var(--shadow);
-    border: 1px solid rgba(255,255,255,0.06);
+    box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.10);
     overflow:hidden;
     position:relative;
   }
+  .frame::before{
+    content:"";
+    position:absolute; top:-40%; right:-30%; width:70%; height:60%;
+    background: radial-gradient(circle, rgba(255,180,84,0.20) 0%, transparent 70%);
+    pointer-events:none; z-index:1;
+  }
   .contour{
     position:absolute; top:0; left:0; width:100%; height:340px;
-    opacity:0.14; pointer-events:none;
+    opacity:0.10; pointer-events:none;
   }
   .header{
     position:relative; padding:22px 22px 8px;
@@ -96,7 +110,10 @@
     background: var(--surface); border:1px solid var(--line);
     border-radius: var(--radius-md); padding:14px 14px 12px;
     display:flex; flex-direction:column; gap:8px;
+    backdrop-filter: blur(14px);
+    transition: background .2s;
   }
+  .metric-card:hover{ background: var(--surface-2); }
   .metric-top{ display:flex; align-items:center; justify-content:space-between; }
   .metric-icon{ width:26px; height:26px; display:flex; align-items:center; justify-content:center; }
   .metric-icon svg{ width:20px; height:20px; stroke:var(--amber); fill:none; stroke-width:1.7;}
@@ -109,9 +126,9 @@
     display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700;
     padding:3px 9px; border-radius:999px; width:fit-content;
   }
-  .pill.good{ background:rgba(47,167,146,0.16); color:var(--teal); }
-  .pill.mod{ background:rgba(232,163,61,0.16); color:var(--amber); }
-  .pill.poor{ background:rgba(193,87,58,0.18); color:var(--clay); }
+  .pill.good{ background:rgba(63,224,197,0.16); color:var(--teal); }
+  .pill.mod{ background:rgba(255,180,84,0.16); color:var(--amber); }
+  .pill.poor{ background:rgba(255,111,97,0.18); color:var(--clay); }
 
   .section-title{
     font-family:'Fraunces'; font-size:15px; font-weight:600;
@@ -133,10 +150,11 @@
   .dot.r10{ background:var(--amber); }
 
   .advisory{
-    margin:18px 22px 4px; background: linear-gradient(135deg, #E8A33D 0%, #D98A2B 100%);
-    color:#241505; border-radius: var(--radius-md); padding:16px 16px 14px;
+    margin:18px 22px 4px; background: linear-gradient(135deg, #FFB454 0%, #FF6F61 100%);
+    color:#2A1200; border-radius: var(--radius-md); padding:16px 16px 14px;
+    box-shadow: 0 12px 28px rgba(255,111,97,0.22);
   }
-  .advisory.calm{ background: linear-gradient(135deg, #2FA792 0%, #1F6E62 100%); color:#052420; }
+  .advisory.calm{ background: linear-gradient(135deg, #3FE0C5 0%, #1B6E62 100%); color:#04241E; box-shadow: 0 12px 28px rgba(63,224,197,0.2); }
   .advisory-head{ display:flex; align-items:center; gap:8px; font-weight:800; font-size:13.5px; }
   .advisory-head svg{ width:16px; height:16px; stroke:#241505; fill:none; stroke-width:2;}
   .advisory.calm .advisory-head svg{ stroke:#052420; }
@@ -146,13 +164,13 @@
 
   .fab{
     position:absolute; bottom:20px; right:20px; z-index:600;
-    width:54px; height:54px; border-radius:50%;
-    background: linear-gradient(135deg, var(--teal), var(--teal-dim));
+    width:56px; height:56px; border-radius:50%;
+    background: linear-gradient(135deg, var(--violet), #6D5FD3);
     display:flex; align-items:center; justify-content:center;
-    box-shadow: 0 10px 24px rgba(47,167,146,0.4);
+    box-shadow: 0 12px 28px rgba(167,139,250,0.45);
     cursor:pointer; border:none;
   }
-  .fab svg{ width:24px; height:24px; stroke:#052420; fill:none; stroke-width:2; }
+  .fab svg{ width:24px; height:24px; stroke:#150E30; fill:none; stroke-width:2; }
 
   /* Chat panel */
   .chat-overlay{
@@ -161,7 +179,8 @@
   }
   .chat-overlay.open{ display:flex; }
   .chat-panel{
-    width:100%; max-height:84%; background:#0F2038;
+    width:100%; max-height:84%; background: linear-gradient(180deg, rgba(45,27,78,0.98) 0%, rgba(14,27,61,0.98) 100%);
+    backdrop-filter: blur(20px);
     border-radius: 26px 26px 0 0; border:1px solid var(--line); border-bottom:none;
     display:flex; flex-direction:column; overflow:hidden;
     animation: slideup .25s ease-out;
@@ -394,10 +413,24 @@
     return res.json();
   }
 
+  // WAQI_TOKEN: paste your free token from https://aqicn.org/data-platform/token/ here
+  // to switch to real India CPCB AQI. Falls back to Open-Meteo US-AQI until then.
+  const WAQI_TOKEN = "d9f6096a20c403c77c2e9beca39112192569ce9d";
+
   async function fetchAQI(lat, lon){
+    if(WAQI_TOKEN){
+      try{
+        const res = await fetch(`https://api.waqi.info/feed/geo:${lat};${lon}/?token=${WAQI_TOKEN}`);
+        const j = await res.json();
+        if(j.status === "ok"){
+          return { current:{ us_aqi: j.data.aqi, pm2_5: j.data.iaqi?.pm25?.v ?? null }, source:"CPCB (WAQI)" };
+        }
+      }catch(e){ /* fall through to Open-Meteo */ }
+    }
     const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi,pm2_5`;
     const res = await fetch(url);
-    return res.json();
+    const j = await res.json();
+    return { current: j.current, source:"Open-Meteo" };
   }
 
   function currentHourPrecipProb(hourly){
@@ -423,7 +456,7 @@
     const aqi = Math.round(aqiData.current.us_aqi);
     const cat = aqiCategory(aqi);
     $('mAQI').textContent = aqi;
-    $('mAQIPill').textContent = cat.label;
+    $('mAQIPill').textContent = `${cat.label} · ${aqiData.source}`;
     $('mAQIPill').className = 'pill ' + cat.cls;
     const prob = currentHourPrecipProb(w.hourly);
     $('mRain').innerHTML = `${prob}<small>%</small>`;
