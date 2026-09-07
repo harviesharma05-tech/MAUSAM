@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mausam — Weather</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0C1826;
+    --surface:#132540;
+    --surface-2:#1B3355;
+    --surface-3:#234070;
+    --mist:#EEF3F9;
+    --mist-dim:#B9C6D9;
+    --teal:#2FA792;
+    --teal-dim:#1F6E62;
+    --amber:#E8A33D;
+    --clay:#C1573A;
+    --line: rgba(238,243,249,0.10);
+    --shadow: 0 18px 40px rgba(4,10,20,0.45);
+    --radius-lg: 26px;
+    --radius-md: 18px;
+    --radius-sm: 12px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: radial-gradient(1200px 800px at 50% -10%, #1B3355 0%, #0C1826 55%), #0C1826;
+    font-family:'Manrope', sans-serif;
+    color:var(--mist);
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding: 28px 12px 60px;
+  }
+  .frame{
+    width:100%;
+    max-width:430px;
+    background: linear-gradient(180deg, #10203A 0%, #0C1826 100%);
+    border-radius: 34px;
+    box-shadow: var(--shadow);
+    border: 1px solid rgba(255,255,255,0.06);
+    overflow:hidden;
+    position:relative;
+  }
+  .contour{
+    position:absolute; top:0; left:0; width:100%; height:340px;
+    opacity:0.14; pointer-events:none;
+  }
+  .header{
+    position:relative; padding:22px 22px 8px;
+    display:flex; flex-direction:column; gap:2px; z-index:2;
+  }
+  .header-row{ display:flex; align-items:center; justify-content:space-between; }
+  .icon-btn{
+    width:38px; height:38px; border-radius:50%;
+    background: rgba(255,255,255,0.06);
+    display:flex; align-items:center; justify-content:center;
+    border:1px solid var(--line); cursor:pointer;
+  }
+  .icon-btn svg{ width:18px; height:18px; stroke:var(--mist); fill:none; stroke-width:1.8; }
+  .loc-search{
+    flex:1; margin:0 12px; display:flex; align-items:center; gap:8px;
+    background: rgba(255,255,255,0.05); border:1px solid var(--line);
+    border-radius: 999px; padding:8px 14px; font-size:13px; color:var(--mist-dim);
+  }
+  .loc-search svg{ width:14px; height:14px; stroke:var(--mist-dim); fill:none; stroke-width:2; flex-shrink:0;}
+  .loc-search input{
+    background:transparent; border:none; outline:none; color:var(--mist);
+    font-family:'Manrope'; font-size:13px; width:100%;
+  }
+  .loc-name{ font-family:'Fraunces'; font-size:21px; font-weight:600; margin-top:14px; }
+  .loc-date{ font-size:12.5px; color:var(--mist-dim); margin-top:2px; }
+
+  .hero{ position:relative; z-index:2; padding:20px 22px 6px; display:flex; align-items:center; justify-content:space-between; gap:14px;}
+  .temp-block .temp{ font-family:'Fraunces'; font-size:64px; font-weight:600; line-height:1; letter-spacing:-1px;}
+  .temp-block .temp sup{ font-size:28px; font-weight:500; }
+  .temp-meta{ margin-top:8px; font-size:12.5px; color:var(--mist-dim); display:flex; flex-direction:column; gap:3px;}
+  .compass{ width:118px; height:118px; flex-shrink:0; position:relative;}
+  .compass svg{ width:100%; height:100%; }
+  .compass .reading{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    text-align:center; font-size:13px; font-weight:700;
+  }
+  .compass .reading span{ display:block; font-size:9px; font-weight:500; color:var(--mist-dim); margin-top:1px;}
+
+  .grid{
+    position:relative; z-index:2;
+    display:grid; grid-template-columns:1fr 1fr; gap:10px;
+    padding: 12px 22px 4px;
+  }
+  .metric-card{
+    background: var(--surface); border:1px solid var(--line);
+    border-radius: var(--radius-md); padding:14px 14px 12px;
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .metric-top{ display:flex; align-items:center; justify-content:space-between; }
+  .metric-icon{ width:26px; height:26px; display:flex; align-items:center; justify-content:center; }
+  .metric-icon svg{ width:20px; height:20px; stroke:var(--amber); fill:none; stroke-width:1.7;}
+  .metric-icon.teal svg{ stroke:var(--teal); }
+  .metric-icon.clay svg{ stroke:var(--clay); }
+  .metric-label{ font-size:11.5px; color:var(--mist-dim); }
+  .metric-value{ font-family:'Fraunces'; font-size:22px; font-weight:600; }
+  .metric-value small{ font-size:12px; font-weight:500; color:var(--mist-dim); }
+  .pill{
+    display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700;
+    padding:3px 9px; border-radius:999px; width:fit-content;
+  }
+  .pill.good{ background:rgba(47,167,146,0.16); color:var(--teal); }
+  .pill.mod{ background:rgba(232,163,61,0.16); color:var(--amber); }
+  .pill.poor{ background:rgba(193,87,58,0.18); color:var(--clay); }
+
+  .section-title{
+    font-family:'Fraunces'; font-size:15px; font-weight:600;
+    padding: 18px 22px 8px; display:flex; align-items:center; justify-content:space-between;
+  }
+  .section-title .hint{ font-size:11px; font-weight:500; color:var(--mist-dim); font-family:'Manrope';}
+
+  .map-wrap{ margin:0 22px; border-radius: var(--radius-lg); overflow:hidden; border:1px solid var(--line); height:230px; position:relative;}
+  #map{ height:100%; width:100%; background:#0C1826; }
+  .map-legend{
+    position:absolute; bottom:10px; left:10px; z-index:500;
+    background:rgba(12,24,38,0.82); backdrop-filter: blur(4px);
+    border:1px solid var(--line); border-radius:10px; padding:6px 10px;
+    font-size:10.5px; color:var(--mist-dim); display:flex; gap:10px;
+  }
+  .map-legend span{ display:flex; align-items:center; gap:5px; }
+  .dot{ width:7px; height:7px; border-radius:50%; }
+  .dot.r5{ background:var(--teal); }
+  .dot.r10{ background:var(--amber); }
+
+  .advisory{
+    margin:18px 22px 4px; background: linear-gradient(135deg, #E8A33D 0%, #D98A2B 100%);
+    color:#241505; border-radius: var(--radius-md); padding:16px 16px 14px;
+  }
+  .advisory.calm{ background: linear-gradient(135deg, #2FA792 0%, #1F6E62 100%); color:#052420; }
+  .advisory-head{ display:flex; align-items:center; gap:8px; font-weight:800; font-size:13.5px; }
+  .advisory-head svg{ width:16px; height:16px; stroke:#241505; fill:none; stroke-width:2;}
+  .advisory.calm .advisory-head svg{ stroke:#052420; }
+  .advisory ul{ margin:8px 0 0; padding-left:18px; font-size:12.5px; line-height:1.55; font-weight:600;}
+
+  .footer-note{ text-align:center; font-size:10.5px; color:var(--mist-dim); padding:16px 22px 8px; line-height:1.6;}
+
+  .fab{
+    position:absolute; bottom:20px; right:20px; z-index:600;
+    width:54px; height:54px; border-radius:50%;
+    background: linear-gradient(135deg, var(--teal), var(--teal-dim));
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 10px 24px rgba(47,167,146,0.4);
+    cursor:pointer; border:none;
+  }
+  .fab svg{ width:24px; height:24px; stroke:#052420; fill:none; stroke-width:2; }
+
+  /* Chat panel */
+  .chat-overlay{
+    position:absolute; inset:0; background:rgba(6,12,20,0.55);
+    display:none; align-items:flex-end; z-index:700;
+  }
+  .chat-overlay.open{ display:flex; }
+  .chat-panel{
+    width:100%; max-height:84%; background:#0F2038;
+    border-radius: 26px 26px 0 0; border:1px solid var(--line); border-bottom:none;
+    display:flex; flex-direction:column; overflow:hidden;
+    animation: slideup .25s ease-out;
+  }
+  @keyframes slideup{ from{ transform:translateY(30px); opacity:0;} to{ transform:translateY(0); opacity:1;} }
+  .chat-head{
+    padding:16px 18px; display:flex; align-items:center; justify-content:space-between;
+    border-bottom:1px solid var(--line);
+  }
+  .chat-head-title{ display:flex; align-items:center; gap:9px; font-family:'Fraunces'; font-weight:600; font-size:15px;}
+  .chat-head-title .dot-live{ width:7px; height:7px; border-radius:50%; background:var(--teal); }
+  .chat-close{ background:none; border:none; cursor:pointer; }
+  .chat-close svg{ width:18px; height:18px; stroke:var(--mist-dim); fill:none; stroke-width:2;}
+  .chat-body{ flex:1; overflow-y:auto; padding:16px 18px; display:flex; flex-direction:column; gap:12px; }
+  .bubble{ max-width:88%; padding:10px 13px; border-radius:14px; font-size:13px; line-height:1.5; }
+  .bubble.bot{ background:var(--surface-2); align-self:flex-start; border-bottom-left-radius:4px; }
+  .bubble.user{ background:var(--teal-dim); align-self:flex-end; border-bottom-right-radius:4px; }
+  .choice-row{ display:flex; flex-wrap:wrap; gap:8px; }
+  .choice-btn{
+    background: var(--surface-3); border:1px solid var(--line); color:var(--mist);
+    padding:8px 13px; border-radius:999px; font-size:12.5px; cursor:pointer; font-family:'Manrope'; font-weight:600;
+  }
+  .choice-btn:hover{ background: var(--teal-dim); }
+  .chat-input-row{
+    padding:12px 18px 18px; display:flex; gap:8px; border-top:1px solid var(--line);
+  }
+  .chat-input-row input{
+    flex:1; background:var(--surface-2); border:1px solid var(--line); border-radius:12px;
+    padding:11px 13px; color:var(--mist); font-family:'Manrope'; font-size:13px; outline:none;
+  }
+  .chat-send{
+    background:var(--teal); border:none; border-radius:12px; width:44px; display:flex;
+    align-items:center; justify-content:center; cursor:pointer;
+  }
+  .chat-send svg{ width:17px; height:17px; stroke:#052420; fill:none; stroke-width:2.3; }
+  .route-stop{
+    display:flex; gap:10px; align-items:flex-start; padding:8px 0;
+  }
+  .route-stop .rail{ display:flex; flex-direction:column; align-items:center; }
+  .route-stop .node{ width:9px; height:9px; border-radius:50%; margin-top:4px; }
+  .route-stop .stem{ width:1.5px; flex:1; background:var(--line); margin-top:2px; min-height:22px;}
+  .route-stop .content{ flex:1; }
+  .route-stop .stop-name{ font-size:12.5px; font-weight:700; }
+  .route-stop .stop-note{ font-size:11.5px; color:var(--mist-dim); margin-top:2px; line-height:1.5;}
+  .tag{ display:inline-block; font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; margin-top:5px;}
+  .tag.warn{ background:rgba(193,87,58,0.2); color:#F2A38C; }
+  .tag.ok{ background:rgba(47,167,146,0.18); color:#8FD9CB; }
+  .tag.gust{ background:rgba(232,163,61,0.2); color:#F3C077; }
+
+  .skeleton{ background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 37%, rgba(255,255,255,0.05) 63%); background-size:400% 100%; animation: shimmer 1.4s infinite; border-radius:8px; }
+  @keyframes shimmer{ 0%{background-position:100% 0;} 100%{background-position:-100% 0;} }
+</style>
+</head>
+<body>
+<div class="frame">
+
+  <svg class="contour" viewBox="0 0 430 340" preserveAspectRatio="none">
+    <path d="M-10 260 Q100 200 200 250 T430 220" stroke="#EEF3F9" stroke-width="1" fill="none"/>
+    <path d="M-10 290 Q110 235 210 280 T430 250" stroke="#EEF3F9" stroke-width="1" fill="none"/>
+    <path d="M-10 320 Q120 270 220 310 T430 280" stroke="#EEF3F9" stroke-width="1" fill="none"/>
+  </svg>
+
+  <div class="header">
+    <div class="header-row">
+      <div class="icon-btn" id="menuBtn"><svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18" stroke-linecap="round"/></svg></div>
+      <div class="loc-search">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="locInput" placeholder="Search a place…" />
+      </div>
+      <div class="icon-btn" id="avatarBtn">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M4.5 20c1.6-4 5-6 7.5-6s5.9 2 7.5 6"/></svg>
+      </div>
+    </div>
+    <div class="loc-name" id="locName">Locating you…</div>
+    <div class="loc-date" id="locDate"></div>
+  </div>
+
+  <div class="hero">
+    <div class="temp-block">
+      <div class="temp" id="tempMain"><span class="skeleton" style="display:inline-block;width:90px;height:56px;"></span></div>
+      <div class="temp-meta">
+        <span id="feelsLike">Feels like —</span>
+        <span id="skyDesc">—</span>
+      </div>
+    </div>
+    <div class="compass">
+      <svg viewBox="0 0 118 118">
+        <circle cx="59" cy="59" r="52" fill="none" stroke="rgba(238,243,249,0.18)" stroke-width="1.4"/>
+        <g id="tickMarks"></g>
+        <text x="59" y="15" fill="#B9C6D9" font-size="9" text-anchor="middle" font-family="Manrope">N</text>
+        <text x="59" y="112" fill="#B9C6D9" font-size="9" text-anchor="middle" font-family="Manrope">S</text>
+        <text x="10" y="63" fill="#B9C6D9" font-size="9" text-anchor="middle" font-family="Manrope">W</text>
+        <text x="108" y="63" fill="#B9C6D9" font-size="9" text-anchor="middle" font-family="Manrope">E</text>
+        <line id="windArrow" x1="59" y1="59" x2="59" y2="24" stroke="#C1573A" stroke-width="2.4" stroke-linecap="round" transform="rotate(0 59 59)"/>
+        <circle cx="59" cy="59" r="2.4" fill="#EEF3F9"/>
+      </svg>
+      <div class="reading"><span id="windSpeedTxt">–</span><span>km/h</span></div>
+    </div>
+  </div>
+
+  <div class="grid" id="metricGrid">
+    <div class="metric-card">
+      <div class="metric-top">
+        <div class="metric-label">Wind Speed</div>
+        <div class="metric-icon"><svg viewBox="0 0 24 24"><path d="M3 8h11a3 3 0 1 0-3-3"/><path d="M3 16h15a3 3 0 1 1-3 3"/></svg></div>
+      </div>
+      <div class="metric-value" id="mWind">—</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-top">
+        <div class="metric-label">Air Quality</div>
+        <div class="metric-icon teal"><svg viewBox="0 0 24 24"><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/><circle cx="12" cy="12" r="3"/></svg></div>
+      </div>
+      <div class="metric-value" id="mAQI">—</div>
+      <div class="pill good" id="mAQIPill">—</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-top">
+        <div class="metric-label">Rain Outlook</div>
+        <div class="metric-icon teal"><svg viewBox="0 0 24 24"><path d="M8 14l-1.5 4M13 14l-1.5 4M18 14l-1.5 4"/><path d="M6 12a4 4 0 0 1 .3-8 5 5 0 0 1 9.6-1.4A4.5 4.5 0 0 1 17 12H6z"/></svg></div>
+      </div>
+      <div class="metric-value" id="mRain">—</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-top">
+        <div class="metric-label">Humidity</div>
+        <div class="metric-icon clay"><svg viewBox="0 0 24 24"><path d="M12 3s6 7 6 11a6 6 0 1 1-12 0c0-4 6-11 6-11z"/></svg></div>
+      </div>
+      <div class="metric-value" id="mHum">—</div>
+    </div>
+  </div>
+
+  <div class="section-title">Your Area <span class="hint">5km / 10km radius</span></div>
+  <div class="map-wrap">
+    <div id="map"></div>
+    <div class="map-legend">
+      <span><span class="dot r5"></span>5 km</span>
+      <span><span class="dot r10"></span>10 km</span>
+    </div>
+  </div>
+
+  <div class="advisory" id="advisoryBox">
+    <div class="advisory-head">
+      <svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9L2.7 18a2 2 0 0 0 1.7 3h15.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      <span id="advisoryTitle">Reading local conditions…</span>
+    </div>
+    <ul id="advisoryList"></ul>
+  </div>
+
+  <div class="footer-note">Weather & air quality via Open‑Meteo · Location via device GPS · Route advisories are a live heuristic, not official landslide/road‑block data.</div>
+
+  <button class="fab" id="fabChat">
+    <svg viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.4 8.4 0 0 1-3.9-.9L3 21l1.9-5.6A8.5 8.5 0 1 1 21 11.5z"/></svg>
+  </button>
+
+  <div class="chat-overlay" id="chatOverlay">
+    <div class="chat-panel">
+      <div class="chat-head">
+        <div class="chat-head-title"><span class="dot-live"></span> Trip Weather Assistant</div>
+        <button class="chat-close" id="chatClose"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+      <div class="chat-body" id="chatBody"></div>
+      <div class="chat-input-row" id="chatInputRow" style="display:none;">
+        <input id="chatInput" placeholder="Type city name…" />
+        <button class="chat-send" id="chatSend"><svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(function(){
+  const DEFAULT_LOC = { lat: 30.3165, lon: 78.0322, name: "Dehradun" }; // fallback
+  let state = { lat: null, lon: null, weather:null, aqi:null };
+  let map, marker;
+
+  const $ = id => document.getElementById(id);
+
+  function setDate(){
+    const d = new Date();
+    $('locDate').textContent = d.toLocaleDateString('en-GB', { day:'2-digit', month:'long', year:'numeric' });
+  }
+  setDate();
+
+  // ---------- ticks on compass ----------
+  (function drawTicks(){
+    const g = document.getElementById('tickMarks');
+    for(let i=0;i<24;i++){
+      const angle = (i*15) * Math.PI/180;
+      const r1=46, r2 = i%2===0? 40:43;
+      const x1 = 59+r1*Math.sin(angle), y1=59-r1*Math.cos(angle);
+      const x2 = 59+r2*Math.sin(angle), y2=59-r2*Math.cos(angle);
+      const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('x1',x1); line.setAttribute('y1',y1);
+      line.setAttribute('x2',x2); line.setAttribute('y2',y2);
+      line.setAttribute('stroke','rgba(238,243,249,0.35)');
+      line.setAttribute('stroke-width','1');
+      g.appendChild(line);
+    }
+  })();
+
+  function weatherCodeDesc(code){
+    const map = {0:"Clear sky",1:"Mostly clear",2:"Partly cloudy",3:"Overcast",45:"Fog",48:"Icy fog",
+      51:"Light drizzle",53:"Drizzle",55:"Dense drizzle",61:"Light rain",63:"Rain",65:"Heavy rain",
+      71:"Light snow",73:"Snow",75:"Heavy snow",80:"Rain showers",81:"Rain showers",82:"Violent showers",
+      95:"Thunderstorm",96:"Thunderstorm + hail",99:"Severe thunderstorm"};
+    return map[code] || "—";
+  }
+
+  function aqiCategory(aqi){
+    if(aqi<=50) return {label:"Good", cls:"good"};
+    if(aqi<=100) return {label:"Moderate", cls:"mod"};
+    if(aqi<=150) return {label:"Poor (sensitive)", cls:"mod"};
+    return {label:"Poor", cls:"poor"};
+  }
+
+  async function reverseGeocode(lat, lon){
+    try{
+      const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
+      const j = await res.json();
+      return j.locality || j.city || j.principalSubdivision || "Your location";
+    }catch(e){ return "Your location"; }
+  }
+
+  async function fetchWeather(lat, lon){
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m&hourly=precipitation_probability&forecast_days=1&timezone=auto`;
+    const res = await fetch(url);
+    return res.json();
+  }
+
+  async function fetchAQI(lat, lon){
+    const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi,pm2_5`;
+    const res = await fetch(url);
+    return res.json();
+  }
+
+  function currentHourPrecipProb(hourly){
+    if(!hourly || !hourly.time) return 0;
+    const nowIso = new Date().toISOString().slice(0,13);
+    let idx = hourly.time.findIndex(t => t.startsWith(nowIso));
+    if(idx === -1) idx = 0;
+    return hourly.precipitation_probability ? hourly.precipitation_probability[idx] : 0;
+  }
+
+  function renderHero(w){
+    const c = w.current;
+    $('tempMain').innerHTML = `${Math.round(c.temperature_2m)}<sup>°C</sup>`;
+    $('feelsLike').textContent = `Feels like ${Math.round(c.apparent_temperature)}°C`;
+    $('skyDesc').textContent = weatherCodeDesc(c.weather_code);
+    $('windSpeedTxt').textContent = Math.round(c.wind_speed_10m);
+    document.getElementById('windArrow').setAttribute('transform', `rotate(${c.wind_direction_10m} 59 59)`);
+  }
+
+  function renderGrid(w, aqiData){
+    const c = w.current;
+    $('mWind').innerHTML = `${Math.round(c.wind_speed_10m)} <small>km/h</small>`;
+    const aqi = Math.round(aqiData.current.us_aqi);
+    const cat = aqiCategory(aqi);
+    $('mAQI').textContent = aqi;
+    $('mAQIPill').textContent = cat.label;
+    $('mAQIPill').className = 'pill ' + cat.cls;
+    const prob = currentHourPrecipProb(w.hourly);
+    $('mRain').innerHTML = `${prob}<small>%</small>`;
+    $('mHum').innerHTML = `${Math.round(c.relative_humidity_2m)}<small>%</small>`;
+  }
+
+  function renderAdvisory(w){
+    const c = w.current;
+    const prob = currentHourPrecipProb(w.hourly);
+    const wind = c.wind_speed_10m;
+    const box = $('advisoryBox');
+    const list = $('advisoryList');
+    list.innerHTML = "";
+    const items = [];
+    if(prob >= 60) items.push("Light to moderate rain likely — carry a rain cover.");
+    if(prob >= 75) items.push("Intense spells possible at isolated stretches nearby.");
+    if(wind >= 30) items.push(`Gusty winds near ${Math.round(wind)} km/h — secure loose items outdoors.`);
+    if(c.weather_code >= 95) items.push("Thunderstorm activity in the area — avoid open ground and tall trees.");
+    if(items.length === 0){
+      box.classList.add('calm');
+      $('advisoryTitle').textContent = "Conditions are calm right now";
+      items.push("No significant weather risk detected for your area at this time.");
+    } else {
+      box.classList.remove('calm');
+      $('advisoryTitle').textContent = "Weather Advisory";
+    }
+    items.forEach(t => { const li=document.createElement('li'); li.textContent=t; list.appendChild(li); });
+  }
+
+  function initMap(lat, lon){
+    map = L.map('map', { zoomControl:false, attributionControl:false }).setView([lat, lon], 11);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom:18 }).addTo(map);
+    marker = L.circleMarker([lat, lon], { radius:6, color:'#EEF3F9', fillColor:'#2FA792', fillOpacity:1, weight:2 }).addTo(map);
+    L.circle([lat, lon], { radius:5000, color:'#2FA792', weight:1.4, fillOpacity:0.04 }).addTo(map);
+    L.circle([lat, lon], { radius:10000, color:'#E8A33D', weight:1.4, fillOpacity:0.03 }).addTo(map);
+
+    // sample nearby points on the 5-10km ring for live callouts
+    const offsets = [ [0.05,0.04], [-0.045,0.05], [0.03,-0.06], [-0.06,-0.03] ];
+    offsets.forEach(async ([dlat,dlon]) => {
+      const plat = lat+dlat, plon = lon+dlon;
+      try{
+        const w = await fetchWeather(plat, plon);
+        const prob = currentHourPrecipProb(w.hourly);
+        const pin = L.circleMarker([plat, plon], { radius:5, color:'#0C1826', fillColor:'#E8A33D', fillOpacity:1, weight:1.5 }).addTo(map);
+        pin.bindPopup(`<b>Rain:</b> ${prob}% · <b>Wind:</b> ${Math.round(w.current.wind_speed_10m)} km/h`);
+      }catch(e){}
+    });
+  }
+
+  async function boot(lat, lon){
+    state.lat = lat; state.lon = lon;
+    reverseGeocode(lat, lon).then(name => { $('locName').textContent = name; });
+    try{
+      const [w, a] = await Promise.all([fetchWeather(lat, lon), fetchAQI(lat, lon)]);
+      state.weather = w; state.aqi = a;
+      renderHero(w);
+      renderGrid(w, a);
+      renderAdvisory(w);
+    }catch(e){
+      $('locName').textContent = "Couldn't load weather";
+      $('advisoryTitle').textContent = "Network issue — showing last known layout";
+    }
+    initMap(lat, lon);
+  }
+
+  function useFallback(){
+    boot(DEFAULT_LOC.lat, DEFAULT_LOC.lon);
+  }
+
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      pos => boot(pos.coords.latitude, pos.coords.longitude),
+      err => useFallback(),
+      { timeout: 6000 }
+    );
+  } else {
+    useFallback();
+  }
+
+  $('locInput').addEventListener('keydown', async (e) => {
+    if(e.key !== 'Enter' || !e.target.value.trim()) return;
+    try{
+      const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(e.target.value)}&count=1`);
+      const j = await res.json();
+      if(j.results && j.results[0]){
+        const r = j.results[0];
+        $('locName').textContent = r.name;
+        map.remove();
+        boot(r.latitude, r.longitude);
+      }
+    }catch(err){}
+  });
+
+  // ============= CHATBOT: trip weather + hazard advisory =============
+  const chatOverlay = $('chatOverlay'), chatBody = $('chatBody'), chatInputRow = $('chatInputRow');
+  let trip = { mode:null, from:null, to:null, stage:0 };
+
+  function botMsg(html){
+    const d = document.createElement('div'); d.className='bubble bot'; d.innerHTML = html;
+    chatBody.appendChild(d); chatBody.scrollTop = chatBody.scrollHeight;
+  }
+  function userMsg(text){
+    const d = document.createElement('div'); d.className='bubble user'; d.textContent = text;
+    chatBody.appendChild(d); chatBody.scrollTop = chatBody.scrollHeight;
+  }
+  function choices(options, onPick){
+    const row = document.createElement('div'); row.className='choice-row';
+    options.forEach(opt => {
+      const b = document.createElement('button'); b.className='choice-btn'; b.textContent = opt;
+      b.onclick = () => { userMsg(opt); row.remove(); onPick(opt); };
+      row.appendChild(b);
+    });
+    chatBody.appendChild(row); chatBody.scrollTop = chatBody.scrollHeight;
+  }
+
+  function openChat(){
+    chatOverlay.classList.add('open');
+    if(chatBody.childElementCount === 0) startTrip();
+  }
+  function closeChat(){ chatOverlay.classList.remove('open'); }
+  $('fabChat').onclick = openChat;
+  $('chatClose').onclick = closeChat;
+
+  function startTrip(){
+    trip = { mode:null, from:null, to:null, stage:0 };
+    chatInputRow.style.display = 'none';
+    botMsg("Hi! I'll check live weather along your route and flag risky stretches. First — how are you travelling?");
+    choices(["Car","Bike","Bus / Train","Walking"], (mode) => {
+      trip.mode = mode;
+      askFrom();
+    });
+  }
+
+  function askFrom(){
+    botMsg("Where are you starting from?");
+    chatInputRow.style.display = 'flex';
+    chatInputRow.dataset.expecting = 'from';
+    $('chatInput').focus();
+  }
+  function askTo(){
+    botMsg(`Got it — ${trip.from}. And your destination?`);
+    chatInputRow.dataset.expecting = 'to';
+  }
+
+  async function geocodeCity(name){
+    const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=1`);
+    const j = await res.json();
+    if(j.results && j.results[0]) return j.results[0];
+    return null;
+  }
+
+  function lerp(a,b,t){ return a+(b-a)*t; }
+
+  async function planRoute(){
+    chatInputRow.style.display = 'none';
+    botMsg(`Checking live weather along the ${trip.from} → ${trip.to} route for ${trip.mode.toLowerCase()} travel…`);
+    const [fromR, toR] = await Promise.all([geocodeCity(trip.from), geocodeCity(trip.to)]);
+    if(!fromR || !toR){
+      botMsg("Couldn't find one of those places — try full city names (e.g. 'Dehradun', 'Rishikesh').");
+      chatInputRow.style.display='flex'; chatInputRow.dataset.expecting='from'; trip.stage=0;
+      return;
+    }
+    const N = 5;
+    const points = [];
+    for(let i=0;i<N;i++){
+      const t = i/(N-1);
+      points.push({
+        lat: lerp(fromR.latitude, toR.latitude, t),
+        lon: lerp(fromR.longitude, toR.longitude, t),
+        label: i===0 ? fromR.name : (i===N-1 ? toR.name : `Checkpoint ${i}`)
+      });
+    }
+    const results = [];
+    for(const p of points){
+      try{
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lon}&current=precipitation,wind_speed_10m,weather_code&elevation=nan&timezone=auto`;
+        const res = await fetch(url);
+        const w = await res.json();
+        results.push({ ...p, precip: w.current.precipitation, wind: w.current.wind_speed_10m, code: w.current.weather_code, elevation: w.elevation });
+      }catch(e){
+        results.push({ ...p, precip:0, wind:0, code:0, elevation:0 });
+      }
+    }
+
+    const wrap = document.createElement('div'); wrap.className='bubble bot'; wrap.style.width='100%'; wrap.style.maxWidth='100%';
+    let html = `<div style="font-weight:700;margin-bottom:6px;">${trip.mode} route: ${trip.from} → ${trip.to}</div>`;
+    results.forEach((r, i) => {
+      const hilly = r.elevation > 600;
+      const heavyRain = r.precip >= 2 || r.code >= 61;
+      const gusty = r.wind >= 35;
+      let tag = '';
+      if(hilly && heavyRain) tag = `<span class="tag warn">Possible landslide-prone stretch — hilly terrain + rain</span>`;
+      else if(heavyRain) tag = `<span class="tag warn">Rain expected — reduce speed</span>`;
+      else if(gusty) tag = `<span class="tag gust">Gusty winds ${Math.round(r.wind)} km/h</span>`;
+      else tag = `<span class="tag ok">Clear conditions</span>`;
+      html += `<div class="route-stop">
+        <div class="rail"><div class="node" style="background:${hilly&&heavyRain?'#C1573A':(gusty?'#E8A33D':'#2FA792')}"></div>${i<results.length-1?'<div class="stem"></div>':''}</div>
+        <div class="content">
+          <div class="stop-name">${r.label}</div>
+          <div class="stop-note">${weatherCodeDesc(r.code)} · ${Math.round(r.wind)} km/h wind${r.elevation? ' · ~'+Math.round(r.elevation)+'m elevation':''}</div>
+          ${tag}
+        </div>
+      </div>`;
+    });
+    wrap.innerHTML = html;
+    chatBody.appendChild(wrap);
+    botMsg("This is a live weather-based heuristic, not official landslide or road-closure data — always check local authority alerts before a hill route.");
+    choices(["Plan another trip"], () => startTrip());
+    chatBody.scrollTop = chatBody.scrollHeight;
+  }
+
+  $('chatSend').onclick = sendChat;
+  $('chatInput').addEventListener('keydown', e => { if(e.key==='Enter') sendChat(); });
+  function sendChat(){
+    const val = $('chatInput').value.trim();
+    if(!val) return;
+    userMsg(val);
+    $('chatInput').value = '';
+    if(chatInputRow.dataset.expecting === 'from'){
+      trip.from = val;
+      askTo();
+    } else if(chatInputRow.dataset.expecting === 'to'){
+      trip.to = val;
+      planRoute();
+    }
+  }
+})();
+</script>
+</body>
+</html>
