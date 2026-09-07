@@ -387,6 +387,7 @@
 </script>
 <script>
 (function(){
+  const $ = id => document.getElementById(id);
   const DEFAULT_LOC = { lat: 30.3165, lon: 78.0322, name: "Dehradun" }; // fallback
   let state = { lat: null, lon: null, weather:null, aqi:null };
   let map, marker;
@@ -522,9 +523,6 @@
   }
   buildLangPanel();
   applyLang();
-
-
-  const $ = id => document.getElementById(id);
   $('locName').textContent = t().locating;
 
   function setDate(){
