@@ -39,6 +39,7 @@
     font-family:'Manrope', sans-serif;
     color:var(--mist);
     min-height:100vh;
+    min-height:100dvh;
     display:flex;
     justify-content:center;
     padding: 28px 12px 60px;
@@ -53,6 +54,17 @@
     border: 1px solid rgba(255,255,255,0.10);
     overflow:hidden;
     position:relative;
+  }
+  @media (max-width: 480px){
+    body{ padding:0; }
+    .frame{
+      max-width:100%;
+      min-height:100vh;
+      min-height:100dvh;
+      border-radius:0;
+      border:none;
+      box-shadow:none;
+    }
   }
   .frame::before{
     content:"";
