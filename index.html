@@ -250,9 +250,14 @@
         <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
         <input id="locInput" placeholder="Search a place…" />
       </div>
+      <div class="icon-btn" id="langBtn" style="width:auto;padding:0 10px;font-size:11px;font-weight:700;gap:4px;">
+        <span id="langLabel">EN</span>
+      </div>
       <div class="icon-btn" id="avatarBtn">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M4.5 20c1.6-4 5-6 7.5-6s5.9 2 7.5 6"/></svg>
       </div>
+    </div>
+    <div id="langPanel" style="display:none;position:absolute;top:64px;right:22px;z-index:800;background:rgba(20,15,45,0.98);backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:14px;padding:8px;box-shadow:var(--shadow);width:160px;">
     </div>
     <div class="loc-name" id="locName">Locating you…</div>
     <div class="loc-date" id="locDate"></div>
@@ -313,7 +318,7 @@
     </div>
   </div>
 
-  <div class="section-title">Your Area <span class="hint">5km / 10km radius</span></div>
+  <div class="section-title"><span id="areaTitleTxt">Your Area</span> <span class="hint" id="areaHintTxt">5km / 10km radius</span></div>
   <div class="map-wrap">
     <div id="map"></div>
     <div class="map-legend">
@@ -339,7 +344,7 @@
   <div class="chat-overlay" id="chatOverlay">
     <div class="chat-panel">
       <div class="chat-head">
-        <div class="chat-head-title"><span class="dot-live"></span> Trip Weather Assistant</div>
+        <div class="chat-head-title"><span class="dot-live"></span> <span id="chatTitleTxt">Trip Weather Assistant</span></div>
         <button class="chat-close" id="chatClose"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
       <div class="chat-body" id="chatBody"></div>
@@ -359,7 +364,141 @@
   let state = { lat: null, lon: null, weather:null, aqi:null };
   let map, marker;
 
+  // ---------- i18n ----------
+  const LANGS = {
+    en:{ label:"English", search:"Search a place…", wind:"Wind Speed", air:"Air Quality", rain:"Rain Outlook", hum:"Humidity",
+      area:"Your Area", radius:"5km / 10km radius", locating:"Locating you…", feels:"Feels like",
+      advisoryCalm:"Conditions are calm right now", advisoryTitle:"Weather Advisory", advisoryCalmBody:"No significant weather risk detected for your area at this time.",
+      footer:"Weather & air quality via live sources · Location via device GPS · Route advisories are a live heuristic, not official landslide/road‑block data.",
+      chatTitle:"Trip Weather Assistant", chatIntro:"Hi! I'll check live weather along your route and flag risky stretches. First — how are you travelling?",
+      modes:["Car","Bike","Bus / Train","Walking"], from:"Where are you starting from?", to:(f)=>`Got it — ${f}. And your destination?`,
+      checking:(f,t,m)=>`Checking live weather along the ${f} → ${t} route for ${m.toLowerCase()} travel…`,
+      notFound:"Couldn't find one of those places — try full city names.", disclaimer:"This is a live weather-based heuristic, not official landslide or road-closure data — always check local authority alerts before a hill route.",
+      again:"Plan another trip", landslide:"Possible landslide-prone stretch — hilly terrain + rain", rainWarn:"Rain expected — reduce speed", gustWarn:"Gusty winds", clearOk:"Clear conditions", typeCity:"Type city name…" },
+    hi:{ label:"हिन्दी", search:"जगह खोजें…", wind:"हवा की गति", air:"वायु गुणवत्ता", rain:"बारिश का अनुमान", hum:"नमी",
+      area:"आपका क्षेत्र", radius:"5किमी / 10किमी दायरा", locating:"आपकी लोकेशन ढूंढी जा रही है…", feels:"महसूस हो रहा है",
+      advisoryCalm:"अभी मौसम शांत है", advisoryTitle:"मौसम चेतावनी", advisoryCalmBody:"अभी आपके क्षेत्र में कोई खास मौसमी खतरा नहीं है।",
+      footer:"मौसम व वायु गुणवत्ता लाइव स्रोतों से · लोकेशन डिवाइस GPS से · रूट चेतावनी एक अनुमान है, आधिकारिक भूस्खलन/सड़क अवरोध डेटा नहीं।",
+      chatTitle:"ट्रिप वेदर असिस्टेंट", chatIntro:"नमस्ते! मैं आपके रूट का लाइव मौसम चेक करूँगा और खतरनाक हिस्से बताऊँगा। पहले बताएं — आप कैसे यात्रा कर रहे हैं?",
+      modes:["कार","बाइक","बस / ट्रेन","पैदल"], from:"आप कहाँ से शुरू कर रहे हैं?", to:(f)=>`ठीक है — ${f}. और आपकी मंज़िल?`,
+      checking:(f,t,m)=>`${f} → ${t} रूट का लाइव मौसम चेक कर रहा हूँ (${m})…`,
+      notFound:"जगह नहीं मिली — पूरा शहर का नाम लिखें।", disclaimer:"यह एक लाइव मौसम-आधारित अनुमान है, आधिकारिक भूस्खलन या सड़क बंद डेटा नहीं — पहाड़ी रूट से पहले स्थानीय प्रशासन की चेतावनी ज़रूर देखें।",
+      again:"नई ट्रिप प्लान करें", landslide:"भूस्खलन का खतरा — पहाड़ी इलाका + बारिश", rainWarn:"बारिश की संभावना — रफ़्तार धीमी रखें", gustWarn:"तेज़ हवाएं", clearOk:"मौसम साफ़", typeCity:"शहर का नाम लिखें…" },
+    hinglish:{ label:"Hinglish", search:"Jagah search karo…", wind:"Wind Speed", air:"Air Quality", rain:"Rain ka andaza", hum:"Humidity",
+      area:"Tumhara Area", radius:"5km / 10km radius", locating:"Location dhoondh rahe hain…", feels:"Feels like",
+      advisoryCalm:"Abhi mausam shaant hai", advisoryTitle:"Weather Advisory", advisoryCalmBody:"Abhi tumhare area mein koi khaas weather risk nahi hai.",
+      footer:"Weather & AQI live sources se · Location device GPS se · Route advisory ek live heuristic hai, official landslide/road-block data nahi.",
+      chatTitle:"Trip Weather Assistant", chatIntro:"Hi! Main tumhare route ka live weather check karke risky stretches bataunga. Pehle bata — travel kaise kar rahe ho?",
+      modes:["Car","Bike","Bus / Train","Walking"], from:"Kahan se start kar rahe ho?", to:(f)=>`Theek hai — ${f}. Aur destination kya hai?`,
+      checking:(f,t,m)=>`${f} → ${t} route ka live weather check kar raha hoon (${m})…`,
+      notFound:"Yeh jagah nahi mili — pura city name likho.", disclaimer:"Yeh sirf live weather-based heuristic hai, official landslide ya road-block data nahi — hill route se pehle local authority alerts zaroor dekho.",
+      again:"Nayi trip plan karo", landslide:"Landslide-prone stretch — hilly terrain + rain", rainWarn:"Rain expected — speed kam rakho", gustWarn:"Gusty winds", clearOk:"Clear conditions", typeCity:"City ka naam likho…" },
+    pa:{ label:"ਪੰਜਾਬੀ", search:"ਜਗ੍ਹਾ ਲੱਭੋ…", wind:"ਹਵਾ ਦੀ ਗਤੀ", air:"ਹਵਾ ਗੁਣਵੱਤਾ", rain:"ਬਾਰਿਸ਼ ਅਨੁਮਾਨ", hum:"ਨਮੀ",
+      area:"ਤੁਹਾਡਾ ਖੇਤਰ", radius:"5ਕਿ.ਮੀ / 10ਕਿ.ਮੀ ਘੇਰਾ", locating:"ਤੁਹਾਡੀ ਲੋਕੇਸ਼ਨ ਲੱਭੀ ਜਾ ਰਹੀ ਹੈ…", feels:"ਮਹਿਸੂਸ ਹੋ ਰਿਹਾ ਹੈ",
+      advisoryCalm:"ਹੁਣ ਮੌਸਮ ਸ਼ਾਂਤ ਹੈ", advisoryTitle:"ਮੌਸਮ ਚੇਤਾਵਨੀ", advisoryCalmBody:"ਇਸ ਵੇਲੇ ਤੁਹਾਡੇ ਖੇਤਰ ਵਿੱਚ ਕੋਈ ਖ਼ਤਰਾ ਨਹੀਂ।",
+      footer:"ਮੌਸਮ ਤੇ AQI ਲਾਈਵ ਸਰੋਤਾਂ ਤੋਂ · ਲੋਕੇਸ਼ਨ GPS ਤੋਂ · ਰੂਟ ਚੇਤਾਵਨੀ ਅੰਦਾਜ਼ਨ ਹੈ, ਅਧਿਕਾਰਤ ਡਾਟਾ ਨਹੀਂ।",
+      chatTitle:"ਟ੍ਰਿਪ ਵੈਦਰ ਅਸਿਸਟੈਂਟ", chatIntro:"ਸਤ ਸ੍ਰੀ ਅਕਾਲ! ਮੈਂ ਤੁਹਾਡੇ ਰੂਟ ਦਾ ਮੌਸਮ ਚੈੱਕ ਕਰਾਂਗਾ। ਪਹਿਲਾਂ ਦੱਸੋ — ਸਫ਼ਰ ਕਿਵੇਂ ਕਰ ਰਹੇ ਹੋ?",
+      modes:["ਕਾਰ","ਬਾਈਕ","ਬੱਸ / ਟਰੇਨ","ਪੈਦਲ"], from:"ਤੁਸੀਂ ਕਿੱਥੋਂ ਸ਼ੁਰੂ ਕਰ ਰਹੇ ਹੋ?", to:(f)=>`ਠੀਕ ਹੈ — ${f}. ਤੇ ਮੰਜ਼ਿਲ?`,
+      checking:(f,t,m)=>`${f} → ${t} ਰੂਟ ਦਾ ਮੌਸਮ ਚੈੱਕ ਕਰ ਰਿਹਾ ਹਾਂ (${m})…`,
+      notFound:"ਜਗ੍ਹਾ ਨਹੀਂ ਮਿਲੀ — ਪੂਰਾ ਸ਼ਹਿਰ ਨਾਮ ਲਿਖੋ।", disclaimer:"ਇਹ ਸਿਰਫ਼ ਮੌਸਮ-ਆਧਾਰਿਤ ਅੰਦਾਜ਼ਾ ਹੈ, ਅਧਿਕਾਰਤ ਡਾਟਾ ਨਹੀਂ — ਪਹਾੜੀ ਰੂਟ ਤੋਂ ਪਹਿਲਾਂ ਸਥਾਨਕ ਚੇਤਾਵਨੀਆਂ ਵੇਖੋ।",
+      again:"ਨਵੀਂ ਟ੍ਰਿਪ ਬਣਾਓ", landslide:"ਜ਼ਮੀਨ ਖਿਸਕਣ ਦਾ ਖ਼ਤਰਾ — ਪਹਾੜੀ + ਬਾਰਿਸ਼", rainWarn:"ਬਾਰਿਸ਼ ਸੰਭਵ — ਰਫ਼ਤਾਰ ਘੱਟ ਰੱਖੋ", gustWarn:"ਤੇਜ਼ ਹਵਾਵਾਂ", clearOk:"ਮੌਸਮ ਸਾਫ਼", typeCity:"ਸ਼ਹਿਰ ਦਾ ਨਾਮ ਲਿਖੋ…" },
+    mr:{ label:"मराठी", search:"जागा शोधा…", wind:"वाऱ्याचा वेग", air:"हवेची गुणवत्ता", rain:"पावसाचा अंदाज", hum:"आर्द्रता",
+      area:"तुमचा परिसर", radius:"5किमी / 10किमी परिसर", locating:"तुमचे स्थान शोधत आहे…", feels:"जाणवतंय",
+      advisoryCalm:"सध्या हवामान शांत आहे", advisoryTitle:"हवामान इशारा", advisoryCalmBody:"सध्या तुमच्या भागात कोणताही धोका नाही.",
+      footer:"हवामान व AQI लाइव्ह स्रोतांकडून · स्थान GPS वरून · मार्ग इशारा हा अंदाज आहे, अधिकृत डेटा नाही.",
+      chatTitle:"ट्रिप वेदर असिस्टंट", chatIntro:"नमस्कार! मी तुमच्या मार्गावरील हवामान तपासेन. आधी सांगा — तुम्ही कसे प्रवास करत आहात?",
+      modes:["कार","बाईक","बस / ट्रेन","पायी"], from:"तुम्ही कुठून सुरुवात करत आहात?", to:(f)=>`ठीक आहे — ${f}. आणि गंतव्य?`,
+      checking:(f,t,m)=>`${f} → ${t} मार्गाचे हवामान तपासत आहे (${m})…`,
+      notFound:"जागा सापडली नाही — पूर्ण शहराचे नाव लिहा.", disclaimer:"हा फक्त हवामान-आधारित अंदाज आहे, अधिकृत भूस्खलन डेटा नाही — डोंगरी मार्गापूर्वी स्थानिक इशारे जरूर पहा.",
+      again:"नवी ट्रिप प्लान करा", landslide:"भूस्खलनाचा धोका — डोंगराळ भाग + पाऊस", rainWarn:"पाऊस शक्य — वेग कमी ठेवा", gustWarn:"जोरदार वारे", clearOk:"हवामान स्वच्छ", typeCity:"शहराचे नाव लिहा…" },
+    bn:{ label:"বাংলা", search:"জায়গা খুঁজুন…", wind:"বাতাসের গতি", air:"বায়ুর মান", rain:"বৃষ্টির পূর্বাভাস", hum:"আর্দ্রতা",
+      area:"আপনার এলাকা", radius:"৫কিমি / ১০কিমি ব্যাসার্ধ", locating:"আপনার অবস্থান খোঁজা হচ্ছে…", feels:"অনুভূত হচ্ছে",
+      advisoryCalm:"এখন আবহাওয়া শান্ত", advisoryTitle:"আবহাওয়া সতর্কতা", advisoryCalmBody:"এই মুহূর্তে আপনার এলাকায় কোনো ঝুঁকি নেই।",
+      footer:"আবহাওয়া ও AQI লাইভ উৎস থেকে · অবস্থান GPS থেকে · রুট সতর্কতা একটি অনুমান, সরকারি ডেটা নয়।",
+      chatTitle:"ট্রিপ ওয়েদার অ্যাসিস্ট্যান্ট", chatIntro:"হাই! আমি আপনার রুটের লাইভ আবহাওয়া দেখব। প্রথমে বলুন — আপনি কীভাবে যাত্রা করছেন?",
+      modes:["গাড়ি","বাইক","বাস / ট্রেন","হেঁটে"], from:"আপনি কোথা থেকে শুরু করছেন?", to:(f)=>`ঠিক আছে — ${f}. আর গন্তব্য?`,
+      checking:(f,t,m)=>`${f} → ${t} রুটের আবহাওয়া দেখা হচ্ছে (${m})…`,
+      notFound:"জায়গা পাওয়া যায়নি — পুরো শহরের নাম লিখুন।", disclaimer:"এটি শুধু আবহাওয়া-ভিত্তিক অনুমান, সরকারি ভূমিধস তথ্য নয় — পাহাড়ি রুটের আগে স্থানীয় সতর্কতা দেখুন।",
+      again:"নতুন ট্রিপ প্ল্যান করুন", landslide:"ভূমিধসের ঝুঁকি — পাহাড়ি এলাকা + বৃষ্টি", rainWarn:"বৃষ্টি সম্ভাবনা — গতি কমান", gustWarn:"ঝোড়ো হাওয়া", clearOk:"পরিষ্কার আবহাওয়া", typeCity:"শহরের নাম লিখুন…" },
+    gu:{ label:"ગુજરાતી", search:"સ્થળ શોધો…", wind:"પવનની ગતિ", air:"હવાની ગુણવત્તા", rain:"વરસાદનો અંદાજ", hum:"ભેજ",
+      area:"તમારો વિસ્તાર", radius:"5કિમી / 10કિમી ત્રિજ્યા", locating:"તમારું સ્થાન શોધાઈ રહ્યું છે…", feels:"અનુભવાય છે",
+      advisoryCalm:"અત્યારે હવામાન શાંત છે", advisoryTitle:"હવામાન ચેતવણી", advisoryCalmBody:"અત્યારે તમારા વિસ્તારમાં કોઈ જોખમ નથી.",
+      footer:"હવામાન અને AQI લાઈવ સ્ત્રોતોમાંથી · સ્થાન GPS થી · રૂટ ચેતવણી અંદાજ છે, સત્તાવાર ડેટા નથી.",
+      chatTitle:"ટ્રિપ વેધર આસિસ્ટન્ટ", chatIntro:"નમસ્તે! હું તમારા રૂટનું હવામાન ચેક કરીશ. પહેલા કહો — તમે કેવી રીતે મુસાફરી કરો છો?",
+      modes:["કાર","બાઈક","બસ / ટ્રેન","ચાલીને"], from:"તમે ક્યાંથી શરૂ કરો છો?", to:(f)=>`સારું — ${f}. અને મંજિલ?`,
+      checking:(f,t,m)=>`${f} → ${t} રૂટનું હવામાન ચેક કરી રહ્યો છું (${m})…`,
+      notFound:"સ્થળ મળ્યું નહીં — પૂરું શહેરનું નામ લખો.", disclaimer:"આ ફક્ત હવામાન-આધારિત અંદાજ છે, સત્તાવાર ભૂસ્ખલન ડેટા નથી — પહાડી રૂટ પહેલા સ્થાનિક ચેતવણી જુઓ.",
+      again:"નવી ટ્રિપ પ્લાન કરો", landslide:"ભૂસ્ખલનનું જોખમ — પહાડી વિસ્તાર + વરસાદ", rainWarn:"વરસાદ શક્ય — ઝડપ ઓછી રાખો", gustWarn:"તેજ પવન", clearOk:"સ્વચ્છ હવામાન", typeCity:"શહેરનું નામ લખો…" },
+    ta:{ label:"தமிழ்", search:"இடத்தைத் தேடு…", wind:"காற்றின் வேகம்", air:"காற்றின் தரம்", rain:"மழை முன்னறிவிப்பு", hum:"ஈரப்பதம்",
+      area:"உங்கள் பகுதி", radius:"5கி.மீ / 10கி.மீ ஆரம்", locating:"உங்கள் இருப்பிடம் தேடப்படுகிறது…", feels:"உணரப்படுகிறது",
+      advisoryCalm:"இப்போது வானிலை அமைதியாக உள்ளது", advisoryTitle:"வானிலை எச்சரிக்கை", advisoryCalmBody:"தற்போது உங்கள் பகுதியில் ஆபத்து இல்லை.",
+      footer:"வானிலை & AQI நேரடி மூலங்களிலிருந்து · இருப்பிடம் GPS மூலம் · பாதை எச்சரிக்கை ஒரு மதிப்பீடு, அதிகாரப்பூர்வ தரவு அல்ல.",
+      chatTitle:"பயண வானிலை உதவியாளர்", chatIntro:"வணக்கம்! உங்கள் பாதையின் வானிலையை சரிபார்க்கிறேன். முதலில் சொல்லுங்கள் — எப்படி பயணிக்கிறீர்கள்?",
+      modes:["கார்","பைக்","பேருந்து / ரயில்","நடை"], from:"எங்கிருந்து தொடங்குகிறீர்கள்?", to:(f)=>`சரி — ${f}. இலக்கு?`,
+      checking:(f,t,m)=>`${f} → ${t} பாதையின் வானிலையை சரிபார்க்கிறேன் (${m})…`,
+      notFound:"இடம் கிடைக்கவில்லை — முழு நகர பெயரை எழுதவும்.", disclaimer:"இது வானிலை அடிப்படையிலான மதிப்பீடு மட்டுமே, அதிகாரப்பூர்வ நிலச்சரிவு தரவு அல்ல — மலைப் பாதைக்கு முன் உள்ளூர் எச்சரிக்கைகளைப் பாருங்கள்.",
+      again:"புதிய பயணத்தைத் திட்டமிடு", landslide:"நிலச்சரிவு ஆபத்து — மலைப் பகுதி + மழை", rainWarn:"மழை சாத்தியம் — வேகத்தை குறைக்கவும்", gustWarn:"பலத்த காற்று", clearOk:"தெளிவான வானிலை", typeCity:"நகர பெயரை எழுதவும்…" },
+    te:{ label:"తెలుగు", search:"స్థలం వెతకండి…", wind:"గాలి వేగం", air:"గాలి నాణ్యత", rain:"వర్షం అంచనా", hum:"తేమ",
+      area:"మీ ప్రాంతం", radius:"5కి.మీ / 10కి.మీ వ్యాసార్థం", locating:"మీ లొకేషన్ కనుగొంటోంది…", feels:"అనిపిస్తోంది",
+      advisoryCalm:"ప్రస్తుతం వాతావరణం ప్రశాంతంగా ఉంది", advisoryTitle:"వాతావరణ హెచ్చరిక", advisoryCalmBody:"ప్రస్తుతం మీ ప్రాంతంలో ప్రమాదం లేదు.",
+      footer:"వాతావరణం & AQI లైవ్ మూలాల నుండి · లొకేషన్ GPS నుండి · రూట్ హెచ్చరిక ఒక అంచనా, అధికారిక డేటా కాదు.",
+      chatTitle:"ట్రిప్ వెదర్ అసిస్టెంట్", chatIntro:"హాయ్! మీ రూట్ వాతావరణాన్ని చెక్ చేస్తాను. ముందు చెప్పండి — ఎలా ప్రయాణిస్తున్నారు?",
+      modes:["కారు","బైక్","బస్సు / రైలు","నడక"], from:"ఎక్కడ నుండి మొదలుపెడుతున్నారు?", to:(f)=>`సరే — ${f}. గమ్యం?`,
+      checking:(f,t,m)=>`${f} → ${t} రూట్ వాతావరణాన్ని చెక్ చేస్తున్నాను (${m})…`,
+      notFound:"స్థలం దొరకలేదు — పూర్తి నగరం పేరు రాయండి.", disclaimer:"ఇది వాతావరణ ఆధారిత అంచనా మాత్రమే, అధికారిక కొండచరియల డేటా కాదు — కొండ రూట్‌కు ముందు స్థానిక హెచ్చరికలు చూడండి.",
+      again:"కొత్త ట్రిప్ ప్లాన్ చేయండి", landslide:"కొండచరియలు విరిగిపడే ప్రమాదం — కొండ ప్రాంతం + వర్షం", rainWarn:"వర్షం అవకాశం — వేగం తగ్గించండి", gustWarn:"బలమైన గాలులు", clearOk:"స్పష్టమైన వాతావరణం", typeCity:"నగరం పేరు రాయండి…" },
+    kn:{ label:"ಕನ್ನಡ", search:"ಸ್ಥಳ ಹುಡುಕಿ…", wind:"ಗಾಳಿಯ ವೇಗ", air:"ಗಾಳಿಯ ಗುಣಮಟ್ಟ", rain:"ಮಳೆ ಮುನ್ಸೂಚನೆ", hum:"ಆರ್ದ್ರತೆ",
+      area:"ನಿಮ್ಮ ಪ್ರದೇಶ", radius:"5ಕಿಮೀ / 10ಕಿಮೀ ವ್ಯಾಪ್ತಿ", locating:"ನಿಮ್ಮ ಸ್ಥಳ ಪತ್ತೆ ಮಾಡಲಾಗುತ್ತಿದೆ…", feels:"ಅನುಭವವಾಗುತ್ತಿದೆ",
+      advisoryCalm:"ಈಗ ಹವಾಮಾನ ಶಾಂತವಾಗಿದೆ", advisoryTitle:"ಹವಾಮಾನ ಎಚ್ಚರಿಕೆ", advisoryCalmBody:"ಪ್ರಸ್ತುತ ನಿಮ್ಮ ಪ್ರದೇಶದಲ್ಲಿ ಅಪಾಯವಿಲ್ಲ.",
+      footer:"ಹವಾಮಾನ & AQI ಲೈವ್ ಮೂಲಗಳಿಂದ · ಸ್ಥಳ GPS ನಿಂದ · ಮಾರ್ಗ ಎಚ್ಚರಿಕೆ ಅಂದಾಜು, ಅಧಿಕೃತ ಡೇಟಾ ಅಲ್ಲ.",
+      chatTitle:"ಟ್ರಿಪ್ ವೆದರ್ ಅಸಿಸ್ಟೆಂಟ್", chatIntro:"ಹಾಯ್! ನಿಮ್ಮ ಮಾರ್ಗದ ಹವಾಮಾನ ಪರಿಶೀಲಿಸುತ್ತೇನೆ. ಮೊದಲು ಹೇಳಿ — ಹೇಗೆ ಪ್ರಯಾಣಿಸುತ್ತಿದ್ದೀರಿ?",
+      modes:["ಕಾರು","ಬೈಕ್","ಬಸ್ / ರೈಲು","ನಡೆದು"], from:"ಎಲ್ಲಿಂದ ಪ್ರಾರಂಭಿಸುತ್ತಿದ್ದೀರಿ?", to:(f)=>`ಸರಿ — ${f}. ಗಮ್ಯಸ್ಥಾನ?`,
+      checking:(f,t,m)=>`${f} → ${t} ಮಾರ್ಗದ ಹವಾಮಾನ ಪರಿಶೀಲಿಸುತ್ತಿದ್ದೇನೆ (${m})…`,
+      notFound:"ಸ್ಥಳ ಸಿಗಲಿಲ್ಲ — ಪೂರ್ಣ ನಗರದ ಹೆಸರು ಬರೆಯಿರಿ.", disclaimer:"ಇದು ಕೇವಲ ಹವಾಮಾನ ಆಧಾರಿತ ಅಂದಾಜು, ಅಧಿಕೃತ ಭೂಕುಸಿತ ಡೇಟಾ ಅಲ್ಲ — ಬೆಟ್ಟದ ಮಾರ್ಗದ ಮೊದಲು ಸ್ಥಳೀಯ ಎಚ್ಚರಿಕೆಗಳನ್ನು ನೋಡಿ.",
+      again:"ಹೊಸ ಟ್ರಿಪ್ ಯೋಜಿಸಿ", landslide:"ಭೂಕುಸಿತ ಅಪಾಯ — ಗುಡ್ಡಗಾಡು + ಮಳೆ", rainWarn:"ಮಳೆ ಸಾಧ್ಯತೆ — ವೇಗ ಕಡಿಮೆ ಮಾಡಿ", gustWarn:"ಬಿರುಗಾಳಿ", clearOk:"ಸ್ಪಷ್ಟ ಹವಾಮಾನ", typeCity:"ನಗರದ ಹೆಸರು ಬರೆಯಿರಿ…" },
+  };
+  let curLang = 'hinglish';
+  function t(){ return LANGS[curLang]; }
+
+  const langBtn = document.getElementById('langBtn');
+  const langPanel = document.getElementById('langPanel');
+  function buildLangPanel(){
+    langPanel.innerHTML = '';
+    Object.keys(LANGS).forEach(code => {
+      const b = document.createElement('div');
+      b.textContent = LANGS[code].label;
+      b.style.cssText = 'padding:9px 10px;border-radius:8px;font-size:13px;cursor:pointer;color:var(--mist);';
+      b.onmouseenter = () => b.style.background = 'rgba(255,255,255,0.08)';
+      b.onmouseleave = () => b.style.background = 'transparent';
+      b.onclick = () => { curLang = code; applyLang(); langPanel.style.display='none'; };
+      langPanel.appendChild(b);
+    });
+  }
+  langBtn.onclick = () => { langPanel.style.display = langPanel.style.display==='none' ? 'block' : 'none'; };
+  document.addEventListener('click', (e) => { if(!langBtn.contains(e.target) && !langPanel.contains(e.target)) langPanel.style.display='none'; });
+
+  function applyLang(){
+    document.getElementById('langLabel').textContent = curLang.toUpperCase().slice(0,2);
+    $('locInput').placeholder = t().search;
+    document.querySelector('.metric-card:nth-child(1) .metric-label').textContent = t().wind;
+    document.querySelector('.metric-card:nth-child(2) .metric-label').textContent = t().air;
+    document.querySelector('.metric-card:nth-child(3) .metric-label').textContent = t().rain;
+    document.querySelector('.metric-card:nth-child(4) .metric-label').textContent = t().hum;
+    $('areaTitleTxt').textContent = t().area;
+    $('areaHintTxt').textContent = t().radius;
+    document.getElementById('feelsLike').textContent = state.weather ? `${t().feels} ${Math.round(state.weather.current.apparent_temperature)}°C` : t().feels;
+    document.querySelector('.footer-note').textContent = t().footer;
+    $('chatTitleTxt').textContent = t().chatTitle;
+    $('chatInput').placeholder = t().typeCity;
+    if(state.weather) renderAdvisory(state.weather);
+    if($('locName').textContent === t().locating || $('locName').textContent.trim() === "") { /* already correct or empty */ }
+  }
+  buildLangPanel();
+  applyLang();
+
+
   const $ = id => document.getElementById(id);
+  $('locName').textContent = t().locating;
 
   function setDate(){
     const d = new Date();
@@ -477,11 +616,11 @@
     if(c.weather_code >= 95) items.push("Thunderstorm activity in the area — avoid open ground and tall trees.");
     if(items.length === 0){
       box.classList.add('calm');
-      $('advisoryTitle').textContent = "Conditions are calm right now";
-      items.push("No significant weather risk detected for your area at this time.");
+      $('advisoryTitle').textContent = t().advisoryCalm;
+      items.push(t().advisoryCalmBody);
     } else {
       box.classList.remove('calm');
-      $('advisoryTitle').textContent = "Weather Advisory";
+      $('advisoryTitle').textContent = t().advisoryTitle;
     }
     items.forEach(t => { const li=document.createElement('li'); li.textContent=t; list.appendChild(li); });
   }
@@ -583,21 +722,21 @@
   function startTrip(){
     trip = { mode:null, from:null, to:null, stage:0 };
     chatInputRow.style.display = 'none';
-    botMsg("Hi! I'll check live weather along your route and flag risky stretches. First — how are you travelling?");
-    choices(["Car","Bike","Bus / Train","Walking"], (mode) => {
+    botMsg(t().chatIntro);
+    choices(t().modes, (mode) => {
       trip.mode = mode;
       askFrom();
     });
   }
 
   function askFrom(){
-    botMsg("Where are you starting from?");
+    botMsg(t().from);
     chatInputRow.style.display = 'flex';
     chatInputRow.dataset.expecting = 'from';
     $('chatInput').focus();
   }
   function askTo(){
-    botMsg(`Got it — ${trip.from}. And your destination?`);
+    botMsg(t().to(trip.from));
     chatInputRow.dataset.expecting = 'to';
   }
 
@@ -612,21 +751,21 @@
 
   async function planRoute(){
     chatInputRow.style.display = 'none';
-    botMsg(`Checking live weather along the ${trip.from} → ${trip.to} route for ${trip.mode.toLowerCase()} travel…`);
+    botMsg(t().checking(trip.from, trip.to, trip.mode));
     const [fromR, toR] = await Promise.all([geocodeCity(trip.from), geocodeCity(trip.to)]);
     if(!fromR || !toR){
-      botMsg("Couldn't find one of those places — try full city names (e.g. 'Dehradun', 'Rishikesh').");
+      botMsg(t().notFound);
       chatInputRow.style.display='flex'; chatInputRow.dataset.expecting='from'; trip.stage=0;
       return;
     }
     const N = 5;
     const points = [];
     for(let i=0;i<N;i++){
-      const t = i/(N-1);
+      const tt = i/(N-1);
       points.push({
-        lat: lerp(fromR.latitude, toR.latitude, t),
-        lon: lerp(fromR.longitude, toR.longitude, t),
-        label: i===0 ? fromR.name : (i===N-1 ? toR.name : `Checkpoint ${i}`)
+        lat: lerp(fromR.latitude, toR.latitude, tt),
+        lon: lerp(fromR.longitude, toR.longitude, tt),
+        label: i===0 ? fromR.name : (i===N-1 ? toR.name : `${t().area.split(' ')[0]} ${i}`)
       });
     }
     const results = [];
@@ -642,29 +781,29 @@
     }
 
     const wrap = document.createElement('div'); wrap.className='bubble bot'; wrap.style.width='100%'; wrap.style.maxWidth='100%';
-    let html = `<div style="font-weight:700;margin-bottom:6px;">${trip.mode} route: ${trip.from} → ${trip.to}</div>`;
+    let html = `<div style="font-weight:700;margin-bottom:6px;">${trip.mode}: ${trip.from} → ${trip.to}</div>`;
     results.forEach((r, i) => {
       const hilly = r.elevation > 600;
       const heavyRain = r.precip >= 2 || r.code >= 61;
       const gusty = r.wind >= 35;
       let tag = '';
-      if(hilly && heavyRain) tag = `<span class="tag warn">Possible landslide-prone stretch — hilly terrain + rain</span>`;
-      else if(heavyRain) tag = `<span class="tag warn">Rain expected — reduce speed</span>`;
-      else if(gusty) tag = `<span class="tag gust">Gusty winds ${Math.round(r.wind)} km/h</span>`;
-      else tag = `<span class="tag ok">Clear conditions</span>`;
+      if(hilly && heavyRain) tag = `<span class="tag warn">${t().landslide}</span>`;
+      else if(heavyRain) tag = `<span class="tag warn">${t().rainWarn}</span>`;
+      else if(gusty) tag = `<span class="tag gust">${t().gustWarn} ${Math.round(r.wind)} km/h</span>`;
+      else tag = `<span class="tag ok">${t().clearOk}</span>`;
       html += `<div class="route-stop">
-        <div class="rail"><div class="node" style="background:${hilly&&heavyRain?'#C1573A':(gusty?'#E8A33D':'#2FA792')}"></div>${i<results.length-1?'<div class="stem"></div>':''}</div>
+        <div class="rail"><div class="node" style="background:${hilly&&heavyRain?'#FF6F61':(gusty?'#FFB454':'#3FE0C5')}"></div>${i<results.length-1?'<div class="stem"></div>':''}</div>
         <div class="content">
           <div class="stop-name">${r.label}</div>
-          <div class="stop-note">${weatherCodeDesc(r.code)} · ${Math.round(r.wind)} km/h wind${r.elevation? ' · ~'+Math.round(r.elevation)+'m elevation':''}</div>
+          <div class="stop-note">${weatherCodeDesc(r.code)} · ${Math.round(r.wind)} km/h${r.elevation? ' · ~'+Math.round(r.elevation)+'m':''}</div>
           ${tag}
         </div>
       </div>`;
     });
     wrap.innerHTML = html;
     chatBody.appendChild(wrap);
-    botMsg("This is a live weather-based heuristic, not official landslide or road-closure data — always check local authority alerts before a hill route.");
-    choices(["Plan another trip"], () => startTrip());
+    botMsg(t().disclaimer);
+    choices([t().again], () => startTrip());
     chatBody.scrollTop = chatBody.scrollHeight;
   }
 
